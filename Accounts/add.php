@@ -7,19 +7,15 @@ $group = filterRequest('group'); // نوع الحساب
 $name = filterRequest('name');
 $amount = filterRequest('amount');
 $description = filterRequest('description');
-$classification = filterRequest('classification'); // التصنيف (assets أو liabilities)
 $userid = filterRequest('user_id');
 
-// تحديد التصنيف تلقائيًا إذا لم يكن "Others"
+// تحديد التصنيف تلقائيًا بناءً على المجموعة
 if ($group == 'Cash' || $group == 'Card' || $group == 'Debit Card' || $group == 'Savings' || $group == 'Investments') {
     $classification = 'assets';
 } elseif ($group == 'Overdrafts' || $group == 'Insurance' || $group == 'Loan') {
     $classification = 'liabilities';
-} elseif ($group == 'Others') {
-    if (empty($classification)) {
-        echo json_encode(["status" => "error", "message" => "Please specify classification for 'Others'"]);
-        exit;
-    }
+} else {
+    $classification = 'assets'; // قيمة افتراضية للمجموعة "Others"
 }
 
 // إدخال الحساب في جدول accounts
