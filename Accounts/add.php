@@ -8,15 +8,7 @@ $name = filterRequest('name');
 $amount = filterRequest('amount');
 $description = filterRequest('description');
 $userid = filterRequest('user_id');
-
-// تحديد التصنيف تلقائيًا بناءً على المجموعة
-if ($group == 'Cash' || $group == 'Card' || $group == 'Debit Card' || $group == 'Savings' || $group == 'Investments') {
-    $classification = 'assets';
-} elseif ($group == 'Overdrafts' || $group == 'Insurance' || $group == 'Loan') {
-    $classification = 'liabilities';
-} else {
-    $classification = 'assets'; // قيمة افتراضية للمجموعة "Others"
-}
+$classification = filterRequest('classification'); // استلام التصنيف من Flutter
 
 // إدخال الحساب في جدول accounts
 $stmt = $con->prepare("INSERT INTO `accounts` (`user_id`, `group`, `name`, `amount`, `description`, `classification`) 
@@ -35,11 +27,11 @@ if ($success) {
         $stmtInsert->execute(array($userid));
     }
 
-    // تحديث القيم في user_accounts
-    if ($classification == 'assets') {
+    // تحديث القيم في user_accounts بناءً على التصنيف
+    if ($classification == 'Assets') {
         $stmtUpdate = $con->prepare("UPDATE `user_accounts` SET `assets` = `assets` + ?, `total` = `assets` - `liabilities` WHERE `user_id` = ?");
         $stmtUpdate->execute(array($amount, $userid));
-    } elseif ($classification == 'liabilities') {
+    } elseif ($classification == 'Liabilities') {
         $stmtUpdate = $con->prepare("UPDATE `user_accounts` SET `liabilities` = `liabilities` + ?, `total` = `assets` - `liabilities` WHERE `user_id` = ?");
         $stmtUpdate->execute(array($amount, $userid));
     }
