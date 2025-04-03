@@ -23,7 +23,35 @@ try {
     if (strtolower($type) === 'expensess') {
         $type = 'expenses';
     }
-    
+
+    // ================== Budget Check Logic ==================
+   // ================== Budget Check Logic ==================
+$budgetExceeded = false;
+if ($type === 'expenses') {
+    // جلب الميزانية المحددة لهذه الفئة
+    $stmtBudget = $con->prepare("SELECT `amount` FROM `budgets` WHERE `category_id` = ? AND `user_id` = ?");
+    $stmtBudget->execute([$category_id, $user_id]);
+    $budgetData = $stmtBudget->fetch(PDO::FETCH_ASSOC);
+
+    if ($budgetData) {
+        // جلب إجمالي المصروفات الحالية في هذه الفئة
+        $stmtTotalExpenses = $con->prepare("SELECT SUM(amount) as total_expenses FROM `transactions` WHERE `category_id` = ? AND `type` = 'expenses' AND `user_id` = ?");
+        $stmtTotalExpenses->execute([$category_id, $user_id]);
+        $totalExpenses = $stmtTotalExpenses->fetch(PDO::FETCH_ASSOC)['total_expenses'] ?? 0;
+
+        // التحقق من تجاوز الحد
+        $budgetLimit = $budgetData['amount'];
+
+        // هنا يتم التحقق بشكل صحيح إذا كانت المصروفات الحالية + المدخلات أكبر من الميزانية
+        if (($totalExpenses + $amount) > $budgetLimit) {
+            $budgetExceeded = true;
+        }
+    }
+}
+// ================== End Budget Check Logic ==================
+
+    // ================== End Budget Check Logic ==================
+
     // 1. إدخال المعاملة في جدول transactions
     $stmt = $con->prepare("INSERT INTO transactions (user_id, account_id, category_id, amount, type, note, transaction_date) 
                            VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -107,7 +135,12 @@ try {
     // تأكيد كافة العمليات
     $con->commit();
 
-    echo json_encode(["status" => "success"]);
+    // إرجاع رسالة تحذير إذا تم تجاوز الميزانية
+    if ($budgetExceeded) {
+        echo json_encode(["status" => "success", "message" => " you have exceeded your budget limit for this category!"]);
+    } else {
+        echo json_encode(["status" => "success"]);
+    }
 } catch (Exception $e) {
     // التراجع عن كافة العمليات في حال حدوث خطأ
     $con->rollBack();

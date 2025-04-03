@@ -167,9 +167,38 @@ try {
     $stmtUpdateUATotal = $con->prepare("UPDATE user_accounts SET total = assets - liabilities WHERE user_id = ?");
     $stmtUpdateUATotal->execute([$user_id]);
 
+    // ================== Budget Check Logic ==================
+    $budgetExceeded = false;
+    if ($new_type === 'expenses') {
+        // جلب الميزانية المحددة لهذه الفئة
+        $stmtBudget = $con->prepare("SELECT `amount` FROM `budgets` WHERE `category_id` = ? AND `user_id` = ?");
+        $stmtBudget->execute([$new_category_id, $user_id]);
+        $budgetData = $stmtBudget->fetch(PDO::FETCH_ASSOC);
+
+        if ($budgetData) {
+            // جلب إجمالي المصروفات الحالية في هذه الفئة
+            $stmtTotalExpenses = $con->prepare("SELECT SUM(amount) as total_expenses FROM `transactions` WHERE `category_id` = ? AND `type` = 'expenses' AND `user_id` = ?");
+            $stmtTotalExpenses->execute([$new_category_id, $user_id]);
+            $totalExpenses = $stmtTotalExpenses->fetch(PDO::FETCH_ASSOC)['total_expenses'] ?? 0;
+
+            // التحقق من تجاوز الحد
+            $budgetLimit = $budgetData['amount'];
+            if ($totalExpenses > $budgetLimit) {
+                $budgetExceeded = true;
+            }
+        }
+    }
+    // ================== End Budget Check Logic ==================
+
     // تأكيد كافة العمليات
     $con->commit();
-    echo json_encode(["status" => "success"]);
+
+    // إرجاع رسالة تحذير إذا تم تجاوز الميزانية
+    if ($budgetExceeded) {
+        echo json_encode(["status" => "success", "message" => "Transaction updated successfully, but you have exceeded your budget limit for this category!"]);
+    } else {
+        echo json_encode(["status" => "success"]);
+    }
     
 } catch (Exception $e) {
     $con->rollBack();

@@ -19,6 +19,16 @@ $old_amount = $oldData['amount'];
 $classification = strtolower($oldData['classification']); // التأكد من أن classification بحروف صغيرة
 $userid = $oldData['user_id'];
 
+// التحقق مما إذا كان الحساب مرتبطًا بمعاملة
+$stmtCheckTransaction = $con->prepare("SELECT COUNT(*) as transaction_count FROM `transactions` WHERE `account_id` = ?");
+$stmtCheckTransaction->execute(array($accountid));
+$transactionData = $stmtCheckTransaction->fetch(PDO::FETCH_ASSOC);
+
+if ($transactionData['transaction_count'] > 0) {
+    echo json_encode(["status" => "error", "message" => "الحساب مرتبط بمعاملة ولا يمكن حذفه إلا بعد حذف المعاملة المرتبطة به"]);
+    exit;
+}
+
 // **حذف الحساب من جدول `accounts`**
 $stmtDelete = $con->prepare("DELETE FROM `accounts` WHERE id = ?");
 $successDelete = $stmtDelete->execute(array($accountid));
